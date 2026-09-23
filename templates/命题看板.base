@@ -1,0 +1,21 @@
+filters:
+  and:
+    - file.folder == "命题登记"
+views:
+  - type: table
+    name: 全部命题
+    order:
+      - file.name
+      - 验证截止
+      - 结果
+      - 维度
+  - type: table
+    name: 待观察
+    filters:
+      and:
+        - file.folder == "命题登记"
+        - 结果 == "待观察"
+    order:
+      - file.name
+      - 验证截止
+      - 预期
