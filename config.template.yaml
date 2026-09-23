@@ -82,6 +82,14 @@ schedules:
   monthly:
     rrule: "FREQ=MONTHLY;BYMONTHDAY=-1;BYHOUR=16;BYMINUTE=30"
 
+# ---- 微信推送层：设计见 PUSH.md；webhook_url 视同密码，只写进真实 config.yaml ----
+push:
+  channel: ""                 # wecom_robot | serverchan | none
+  webhook_url: ""             # wecom_robot 完整 webhook 地址 / serverchan SendKey
+  push_targets: [daily, weekly, monthly]
+  digest_max_chars: 1200
+  retry: 2
+
 # ---- 阈值 ----
 thresholds:
   evidence_unverified_ratio_warn: 0.4
