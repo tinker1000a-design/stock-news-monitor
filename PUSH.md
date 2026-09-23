@@ -2,15 +2,18 @@
 
 > 报告本体永远在 Obsidian vault，微信收到的只是**摘要卡 + 指路**。本层是纯附加通知，故障不得影响报告生成。
 
-## 1. 渠道抽象（config.push.channel 三选一）
+## 1. 渠道抽象（config.push.channel 四选一）
 
-| channel | 载体 | 适用 | 前置条件 |
-|---------|------|------|----------|
-| `wecom_robot`（默认推荐） | 企业微信群机器人 webhook | 用户已装企业微信；免费、免认证、支持 markdown | 建一个只有自己的群 → 群设置"添加群机器人" → 复制 webhook 地址 |
-| `serverchan` | Server酱·Turbo（个人微信服务号） | 只有个人微信、没有企业微信 | sct.ftqq.com 登录 → 拿 SendKey；免费档限 5 条/天，只够推日报，周报可能被限流 |
+| channel | 载体 | 消息出现在哪 | 前置条件 |
+|---------|------|----------|----------|
+| `wecom_robot`（默认推荐） | 企业微信群机器人 webhook | 企业微信 App（消息稳定、无条数焦虑） | 建一个只有自己的群 → 群设置"添加群机器人" → 复制 webhook 地址 |
+| `serverchan` | Server酱·Turbo | **个人微信**"服务通知"（经服务号下发） | sct.ftqq.com 微信扫码登录 → 复制 SendKey；免费档有限流（以官网实时说明为准，可能只够日报） |
+| `wxpusher` | WxPusher | **个人微信**"服务通知"（经公众号下发） | wxpusher.zjiecode.com 注册 → 建 App 拿 appToken → 用户关注其公众号并扫码绑定 UID；免费，额度以官网为准 |
 | `none` | 不推送 | 静默模式 | 无 |
 
-**推荐 `wecom_robot`**：无条数限制、markdown 渲染好、webhook 就是密钥本身（无第二套鉴权）。
+**关于"推到个人微信"的说明**：个人微信没有官方机器人 API。以上 serverchan/wxpusher 都是把消息经**公众号/服务号**通道送到你个人微信的"服务通知"里——这是正规且稳的路径。宣称能直接进聊天窗口的方案（itchat/wechaty 等逆向协议）有封号风险，本系统不支持。若嫌"服务通知"入口不显眼，`wecom_robot` 的消息在企业微信 App 上有独立角标提醒，实际盯盘场景反而更快。
+
+**推荐组合**：日常高频日报走 `wecom_robot`；出差/不想装企业微信的场合，同一份摘要可用 `wxpusher` 双发——config 只允许一个 channel，双发= 两个部署实例或手动切换。
 
 ## 2. 配置（写进 config.yaml，真实密钥不入 git）
 
@@ -48,5 +51,5 @@ push:
 1. **时机**：报告写入 vault 且 `status: final` 之后才推送；`draft` 不推。
 2. **失败兜底**：重试后仍失败 → 写 `state.json.push_log`（时间/渠道/错误），**不得阻塞流程、不得重跑报告**；下次运行时检查 push_log 补推漏发摘要。
 3. **降级链**：webhook 不可达 → 换 serverchan（若配置）→ 放弃并记录。禁止为推送引入新依赖（不装 SDK，用 `curl`/`requests` POST JSON 即可）。
-4. **频率限制**：wecom_robot 20 条/分钟，系统天然不触线；serverchan 免费档 5 条/天 → push_targets 自动降为 [daily] 并在周报里注明。
+4. **频率限制**：wecom_robot 20 条/分钟，系统天然不触线；serverchan/wxpusher 免费档有限流（额度以官网实时说明为准，未核实不写死数字）→ 触发限流时自动降为 `push_targets: [daily]` 并在周报里注明。
 5. **内容纪律**：摘要卡同样过措辞黑名单检查（BOOTSTRAP 第 8 节）；发现 AI 在摘要里"加戏"→ 视为违反客观性红线。
