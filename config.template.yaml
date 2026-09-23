@@ -77,10 +77,30 @@ link_dimensions: [产业链, 同题材, 竞品, 因果链, 资金机构]
 schedules:
   daily:
     rrule: "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;BYHOUR=16;BYMINUTE=5"
+  morning:              # 早报：隔夜国际形势 → 早间 A 股分析，可选启用
+    enabled: false
+    rrule: "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;BYHOUR=8;BYMINUTE=30"
+  evening:              # 晚报：白天盘面复盘，可选启用
+    enabled: false
+    rrule: "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;BYHOUR=18;BYMINUTE=0"
   weekly:
     rrule: "FREQ=WEEKLY;BYDAY=FR;BYHOUR=15;BYMINUTE=30"
   monthly:
     rrule: "FREQ=MONTHLY;BYMONTHDAY=-1;BYHOUR=16;BYMINUTE=30"
+
+# ---- 信源信任管理：黑名单 + 可信度覆盖（用户可随时改，AI 执行）----
+source_trust:
+  blacklist: []         # 完全不采信的网站/账号/媒体名。命中即丢弃该条信息，不进"未核实"层级，仅在日报"已过滤信源"栏留痕
+  credibility: {}       # 按信源覆盖默认分级，如 {"金十数据": 0.8, "某大V公众号": 0.3}，0-1；缺省走默认分级
+  default_tiers:        # 默认可信度分级（证据审计规则的数据源维度）
+    官方公告: 1.0        # 交易所公告/公司公告/监管文件
+    机构报告: 0.9        # 券商研报/机构新闻稿（注意口径差异）
+    权威媒体: 0.7        # 财联社/证券时报/路透等
+    自媒体: 0.4          # 公众号/头条/微博大V，仅"未核实"层级
+    未知来源: 0.2        # 无法追溯出处的转载，仅"未核实"层级
+  auto_demote_falsified: 3   # 连续证伪 N 次 → 自动降一级（与命题打分回路联动）
+
+# ---- 信源信任管理结束 ----
 
 # ---- 用户意图对齐记忆：设计见 INTENT.md，仅负反馈触发，其余轮次零动作 ----
 intent_memory:
