@@ -9,6 +9,22 @@
 
 追踪股票新闻 → 按 短期/中期/长期（可配置）维度筛选 → 生成「日期+核心命题」日报，周五收盘后出周报、月报季报递进 → 全部报告写入 Obsidian vault 形成五维双链知识图谱 → 命题登记表定期回看打分，防止过拟合与讨好。
 
+## 0.5 获取本仓库（网络降级三级方案）
+
+GitHub 在国内为"间歇性可直连"，部署前先判定连通性，按序降级：
+
+**判定**：`curl -sI --connect-timeout 8 https://github.com` 返回 HTTP 2xx/3xx 即视为可达。
+
+| 级别 | 条件 | 动作 |
+|------|------|------|
+| L1 直连 | 判定通过 | `git clone https://github.com/tinker1000a-design/stock-news-monitor.git` |
+| L2 镜像 | 直连超时/失败 | 在原始 URL 前加镜像前缀 clone，按序尝试：`https://ghfast.top/`、`https://gh-proxy.com/`（镜像站可能失效，连不上换下一个） |
+| L3 逐文件抓取 | clone 全部失败 | 用 curl/WebFetch 逐个抓 `https://raw.githubusercontent.com/tinker1000a-design/stock-news-monitor/main/<路径>`（也可加 L2 镜像前缀），按清单写盘：`BOOTSTRAP.md`、`config.template.yaml`、`设计文档.md`、`templates/日报模板.md`、`templates/周报模板.md`、`templates/个股中枢模板.md`、`templates/命题登记模板.md`。写盘后目录结构对齐本仓库，继续执行本手册 |
+
+**注意**：部署完成后系统日常运行不依赖 GitHub（数据源是东财 MCP），本节仅在首次部署/更新时使用。抓取的文件内容若明显残缺（截断/乱码），换镜像重试，不得将残缺手册当作执行依据。
+
+---
+
 ## 1. 环境检测与安装（首次运行必做）
 
 | 依赖 | 检测方法 | 缺失时动作 |

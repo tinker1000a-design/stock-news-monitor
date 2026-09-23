@@ -4,7 +4,7 @@ AI 驱动的股票新闻监控系统：新闻采集 → 短/中/长期三维筛�
 
 ## 快速部署（给任何 AI 的一段话）
 
-> 把本仓库下载/克隆到本地，然后读其中的 `BOOTSTRAP.md`，严格按章节顺序执行：检测环境（缺 Obsidian 则自动安装，数据源不可用则降级）→ 发现或创建 Obsidian vault → 复制 `config.template.yaml` 为 `config.yaml` 并填写标的 → 初始化骨架 → 注册定时任务。全程无需人工写代码，仅在配置路径和选择标的时需要确认。
+> 把本仓库下载/克隆到本地（GitHub 直连失败时，按 `BOOTSTRAP.md` 第 0.5 节的三级降级方案：镜像 clone → 逐文件抓取），然后读其中的 `BOOTSTRAP.md`，严格按章节顺序执行：检测环境（缺 Obsidian 则自动安装，数据源不可用则降级）→ 发现或创建 Obsidian vault → 复制 `config.template.yaml` 为 `config.yaml` 并填写标的 → 初始化骨架 → 注册定时任务。全程无需人工写代码，仅在配置路径和选择标的时需要确认。
 
 ## 仓库结构
 
