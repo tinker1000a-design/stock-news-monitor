@@ -7,6 +7,35 @@
 system: stock-news-monitor
 version: 0.2
 
+# ---- 用户画像：首跑问卷（BOOTSTRAP 第 2 节）的答案写在这里 ----
+profile:
+  strategy: ""          # value=长期价值 | swing=中线波段 | spec=短线投机 | mixed=混合
+  info_rhythm: ""       # intraday=盘中 | daily_close=每日收盘 | weekly=每周
+  focus_rank: []        # 关注面排序，如 [资金面, 情绪面, 政策面]
+  concentration: ""     # deep=重仓少数深挖 | wide=分散跟踪
+  confirmed: false      # 用户已确认画像后置 true；false 时报告标注"默认假设画像"
+
+# ---- 画像预设：profile.strategy 激活对应段，可被用户显式要求覆盖 ----
+presets:
+  value:                # A 长期价值
+    dimension_focus: [long, mid]
+    extra_column: "估值锚点（PE/PB 分位+口径标注）"
+    thesis_window: "季报/年报节点"
+    mute_dimensions: [游资龙虎榜]
+    report_depth: 深挖
+  swing:                # B 中线波段
+    dimension_focus: [short, mid]
+    focus_signals: [资金流向, 事件催化, 回调买点]
+    thesis_window: "1-4 周"
+    report_depth: 均衡
+  spec:                 # C 短线投机
+    dimension_focus: [short]
+    focus_signals: [情绪周期, 连板梯队, 龙虎榜]
+    thesis_window: "1-5 日"
+    noise_warn_threshold: 0.3     # 短线信息噪声高，未核实占比警告线下调
+    requires_intraday: true       # 无盘中数据源必须明示降级
+  mixed: {}             # D 混合：按 stocks[].style_override 逐标的激活
+
 vault:
   path: ""            # 留空则由 AI 按自动发现逻辑定位/创建（见 BOOTSTRAP 2.1）
   watch_dirs:
@@ -27,6 +56,7 @@ stocks: []            # 示例：
   #   priority: high            # 仅影响排序/篇幅，不影响结论
   #   industry: "存储芯片产业链"
   #   themes: ["AI内存国产替代"]
+  #   style_override: swing     # 仅 profile.strategy=mixed 时生效，逐标的指定 value/swing/spec
 
 # ---- 分析维度：可增删改，模板用 {{dimensions}} 渲染 ----
 dimensions:
