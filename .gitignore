@@ -1,0 +1,7 @@
+# 个人配置与运行状态不入库
+config.yaml
+.monitor/
+
+# 系统垃圾
+Thumbs.db
+.DS_Store

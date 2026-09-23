@@ -1,0 +1,123 @@
+# 股票新闻监控系统 · Agent 自举手册（BOOTSTRAP）
+
+> **本文件面向任何接手本系统的 AI（无论前后是谁）。按章节顺序执行，不跳步。**
+> 配套：《股票新闻监控系统-设计文档.md》（设计原理）｜ `config.yaml`（唯一配置源）｜ `templates/`（报告模板）
+
+---
+
+## 0. 系统一句话
+
+追踪股票新闻 → 按 短期/中期/长期（可配置）维度筛选 → 生成「日期+核心命题」日报，周五收盘后出周报、月报季报递进 → 全部报告写入 Obsidian vault 形成五维双链知识图谱 → 命题登记表定期回看打分，防止过拟合与讨好。
+
+## 1. 环境检测与安装（首次运行必做）
+
+| 依赖 | 检测方法 | 缺失时动作 |
+|------|----------|------------|
+| Obsidian | 查 `%LocalAppData%\Obsidian\Obsidian.exe` 或注册表 Uninstall 项 | `winget install Obsidian.Obsidian`；失败则告知用户手动装（系统不依赖 Obsidian 运行，只依赖 vault 目录，可先建目录后补装） |
+| 东财数据源 | 调用东财 MCP（妙想/westock 等）拉一条测试行情 | 不可用则**降级为"数据源不可用"日报**，禁止凭记忆补数据 |
+| 运行环境 | python 或 node 任一可用 | 报告生成本身是 AI 任务，无重依赖；仅 CSV/JSON 处理用标准库 |
+
+## 2. Vault 发现与初始化
+
+### 2.1 定位 vault（按序尝试，取第一个成功）
+1. **读 config**：`vault.path` 非空且目录存在 → 直接用。
+2. **读 Obsidian 注册表文件**：`%APPDATA%\obsidian\obsidian.json` 内含用户所有已注册 vault 路径 → 取列表；仅一个则用之，多个则向用户展示列表让其选。
+3. **扫描常见位置**：在各盘根（C/D/E）及 `%USERPROFILE%\Documents` 下查找含 `.obsidian` 子目录的文件夹（深度 ≤ 2，避免全盘扫）。
+4. **兜底自建**：以上全失败 → 在 `%USERPROFILE%\Documents\股票监控图谱` 创建目录并写入空的 `.obsidian/` 文件夹（Obsidian 打开该目录即识别为 vault），告知用户路径。
+5. 无论走哪条路，把最终路径写回 `config.yaml` 的 `vault.path`。
+
+### 2.2 初始化骨架
+
+1. 读 `config.yaml` 的 `vault.path`。为空 → 询问用户 vault 路径，写入 config 后继续。
+2. 按以下骨架创建目录（已存在则跳过，不覆盖）：
+
+```
+<vault>/
+├── 个股/          # 每只注册标的一个中枢笔记
+├── 事件/          # 一事一记
+├── 行业/          # 产业链锚点
+├── 主题/          # 跨行业题材
+├── 日报/  周报/  月报/
+├── 命题登记/      # 可证伪命题，一题一文件
+└── .monitor/      # AI 运行状态（用户无需关心）
+    └── state.json
+```
+
+3. 写入 `state.json` 初始状态（schema 见第 5 节）。
+4. 每只 `config.stocks` 里的标的：用 `templates/个股中枢模板.md` 建中枢笔记；其所属行业/主题笔记若不存在则一并创建。
+
+## 3. 标的注册（扩容的唯一入口）
+
+**新增任意一只股票 = 只改 config.yaml + 跑一次注册流程**，不写任何硬编码逻辑：
+
+1. 在 `config.yaml` 的 `stocks:` 下追加条目（code/name/alias/priority）。
+2. 检查其产业链、主题笔记是否存在，不存在则创建并互链。
+3. 用中枢模板生成 `个股/<名称>.md`，回链到行业与主题。
+4. 若用户指定了偏好（priority/风格），仅写入 config——记住：偏好只影响排序与篇幅，**永不进入结论**（见第 7 节）。
+
+## 4. 自动化注册
+
+用 WorkBuddy `automation_update` 创建三个 recurring 任务（已存在同名任务则更新不新建）：
+
+| 任务名 | rrule | prompt 要点 |
+|--------|-------|-------------|
+| 股票日报 | `FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;BYHOUR=16;BYMINUTE=5` | 按 BOOTSTRAP 第 5-6 节流程：增量扫描→拉新闻→筛选→按日报模板写报告→登记命题→回写 state.json |
+| 股票周报 | `FREQ=WEEKLY;BYDAY=FR;BYHOUR=15;BYMINUTE=30` | 汇总本周日报→给到期命题打分→更新覆盖矩阵→按周报模板写报告 |
+| 股票月报 | `FREQ=MONTHLY;BYMONTHDAY=-1;BYHOUR=16;BYMINUTE=30` | 汇总周报→命中率统计→盲区专题 |
+
+prompt 中必须写明 vault 路径与"先读本 BOOTSTRAP.md"。
+
+## 5. 运行时钩子：增量识别更新的笔记（核心）
+
+`.monitor/state.json` schema：
+
+```json
+{
+  "version": 1,
+  "last_run": "2026-09-23T16:05:00",
+  "processed": { "个股/长鑫科技.md": { "mtime": 0, "hash": "..." } },
+  "pending_analysis": [],
+  "config_hash": "..."
+}
+```
+
+**每次运行的钩子流程：**
+
+0. **首次运行判定**：`state.json` 中存在 `"seed-"` 前缀的 hash/mtime → 视为种子状态，先对全部种子笔记计算真实 mtime+hash 重建 `processed`，并计算 config 真实哈希回写 `config_hash`，然后继续第 1 步。**state.json 不存在 → 按 2.2 重建骨架后再运行。**
+1. 读 `state.json` + 计算 `config.yaml` 哈希 → 不一致说明配置被改过，先走第 3 节校验（新标的注册/维度变更）。
+2. 扫描 `watch_dirs` 内所有 `.md` 的 mtime，与 `processed` 对比 → 新增/变更笔记进入 `pending_analysis`。
+3. frontmatter 钩子字段（新 AI 写笔记时必须遵守）：
+   - `updated: <ISO时间>` —— 手动/外部修改笔记时应更新它；
+   - `status: draft | final` —— 仅 `final` 笔记参与综合报告，`draft` 提示"待完善"；
+   - `verified: 已交叉验证 | 单一来源 | 未核实` —— 证据等级。
+4. 分析完成后回写 `state.json`（更新 processed、清空 pending、写 last_run）。
+5. **禁止事项**：不得绕过 state.json 做全量重扫后不重建状态文件；不得删除 `.monitor/`；写 state.json 用"临时文件 + 原子替换"（先写 `.tmp` 再改名），避免半写损坏。
+
+**到期命题扫描规则（周报/月报打分入口）**：扫描 `命题登记/` 下所有笔记的 frontmatter，筛出 `结果: 待观察` 且 `验证截止 <= 本次报告日期` 的文件 → 全部列入打分表，一个都不能跳过。扫不到任何到期命题也要在周报明确写"本周无到期命题"。
+
+**重复观点判定算法**：对本期与上期核心命题句做关键词抽取（实体+动词，去停用词），计算 Jaccard 重合度 ≥ `thresholds.similarity_repeat_warn` 即判"重复观点"。判定结果连同两组关键词一并写入报告，供复核。
+
+这套钩子保证：后续任何 AI（或用户手动改笔记后）都能被系统识别，增量进入下一轮分析，而不是重复处理或漏处理。
+
+## 6. 报告生成流程
+
+1. **先搜后写**：grep vault 已有笔记做实体匹配，链接到已存在节点，禁止造重复节点。
+2. 按 `templates/日报模板.md`（周报/月报同理）填空，`{{dimensions}}` 从 config 渲染。
+3. 核心命题写入 `命题登记/命题-<日期>-<序号>.md`，必须是**可证伪表述**（含验证方式+预期）。
+4. 证据黑名单措辞自动检查：`config.anti_sycophancy.wording_blacklist` 命中即改写。
+5. 写入报告 → 更新个股中枢"事件时间线" → 回写 state.json。
+
+## 7. 客观性红线（任何 AI 不可豁免）
+
+- **冷热分离**：偏好字段（priority、用户风格）用于排序与篇幅，结论生成时视为不可见。
+- **反方论点必填**：模板该栏为空必须写明"检索了什么关键词、未找到"。
+- **分级证据**：自媒体/转载 = 未核实，不进结论；未核实占比 > `thresholds.evidence_unverified_ratio_warn` 时在报告顶部警告。
+- **无新增信息要明说**：与上期结论相似度 > `similarity_repeat_warn` → 标"重复观点"，不重写。
+- **连续证伪降权**：同一信源/主题连续 `consecutive_falsified_demote` 次命题证伪 → 后续报告中自动降权标注。
+- **数据源断供**：降级为"数据源不可用"，禁止用训练记忆补当日数据。
+
+## 8. 修改容差
+
+- **维度增删/改窗口**：只改 `config.yaml` 的 `dimensions`，模板用占位符渲染，报告自动带上新维度栏。
+- **报告频率调整**：只改 `schedules` 并更新对应 automation。
+- **配置校验失败**（schema 不合、字段缺失）：保守运行 + 日报顶部标记"配置异常：<原因>"，不得静默忽略。
