@@ -82,6 +82,14 @@ schedules:
   monthly:
     rrule: "FREQ=MONTHLY;BYMONTHDAY=-1;BYHOUR=16;BYMINUTE=30"
 
+# ---- 用户意图对齐记忆：设计见 INTENT.md，仅负反馈触发，其余轮次零动作 ----
+intent_memory:
+  enabled: true
+  dir: ".monitor/intent"      # 点目录：在 vault 内但图谱不渲染
+  memory_file: "MEMORY.md"    # 意图对齐主档（≤3000 字滚动维护）
+  daily_summary: true         # 触发轮摘要按日追加，30 天前蒸馏进主档
+  max_chars: 3000
+
 # ---- 微信推送层：设计见 PUSH.md；webhook_url 视同密码，只写进真实 config.yaml ----
 push:
   channel: ""                 # wecom_robot | serverchan | none
