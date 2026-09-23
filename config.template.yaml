@@ -83,6 +83,9 @@ schedules:
   evening:              # 晚报：白天盘面复盘，可选启用
     enabled: false
     rrule: "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;BYHOUR=18;BYMINUTE=0"
+  weekend:              # 周末新闻简报：周六/周日采集，可选启用（周末有新闻无盘面，不做复盘）
+    enabled: false
+    rrule: "FREQ=WEEKLY;BYDAY=SA,SU;BYHOUR=10;BYMINUTE=0"
   weekly:
     rrule: "FREQ=WEEKLY;BYDAY=FR;BYHOUR=15;BYMINUTE=30"
   monthly:
