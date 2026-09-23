@@ -92,7 +92,7 @@ intent_memory:
 
 # ---- 微信推送层：设计见 PUSH.md；webhook_url 视同密码，只写进真实 config.yaml ----
 push:
-  channel: ""                 # wecom_robot | serverchan | wxpusher | none（个人微信走 serverchan/wxpusher，见 PUSH.md）
+  channel: ""                 # wecom_connector | wecom_robot | serverchan | wxpusher | none（见 PUSH.md）
   webhook_url: ""             # wecom_robot 完整 webhook 地址 / serverchan SendKey
   push_targets: [daily, weekly, monthly]
   digest_max_chars: 1200

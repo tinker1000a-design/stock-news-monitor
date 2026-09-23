@@ -2,18 +2,24 @@
 
 > 报告本体永远在 Obsidian vault，微信收到的只是**摘要卡 + 指路**。本层是纯附加通知，故障不得影响报告生成。
 
-## 1. 渠道抽象（config.push.channel 四选一）
+## 1. 渠道抽象（config.push.channel 五选一）
 
 | channel | 载体 | 消息出现在哪 | 前置条件 |
 |---------|------|----------|----------|
-| `wecom_robot`（默认推荐） | 企业微信群机器人 webhook | 企业微信 App（消息稳定、无条数焦虑） | 建一个只有自己的群 → 群设置"添加群机器人" → 复制 webhook 地址 |
-| `serverchan` | Server酱·Turbo | **个人微信**"服务通知"（经服务号下发） | sct.ftqq.com 微信扫码登录 → 复制 SendKey；免费档有限流（以官网实时说明为准，可能只够日报） |
-| `wxpusher` | WxPusher | **个人微信**"服务通知"（经公众号下发） | wxpusher.zjiecode.com 注册 → 建 App 拿 appToken → 用户关注其公众号并扫码绑定 UID；免费，额度以官网为准 |
+| `wecom_connector`（**本机当前生效**） | WorkBuddy 企业微信连接器（wecom-cli，机器人主动通知） | 企业微信 App · 机器人单聊 | 连接器已连接并完成扫码授权即可，**零密钥管理** |
+| `wecom_robot` | 企业微信群机器人 webhook | 企业微信 App · 群聊 | 建群 → 添加群机器人 → 复制 webhook 地址 |
+| `serverchan` | Server酱·Turbo | **个人微信**"服务通知"（经服务号下发） | sct.ftqq.com 微信扫码登录 → 复制 SendKey；免费档有限流（以官网实时说明为准） |
+| `wxpusher` | WxPusher | **个人微信**"服务通知"（经公众号下发） | wxpusher.zjiecode.com 注册 → 建 App 拿 appToken → 关注公众号绑定 UID；额度以官网为准 |
 | `none` | 不推送 | 静默模式 | 无 |
 
-**关于"推到个人微信"的说明**：个人微信没有官方机器人 API。以上 serverchan/wxpusher 都是把消息经**公众号/服务号**通道送到你个人微信的"服务通知"里——这是正规且稳的路径。宣称能直接进聊天窗口的方案（itchat/wechaty 等逆向协议）有封号风险，本系统不支持。若嫌"服务通知"入口不显眼，`wecom_robot` 的消息在企业微信 App 上有独立角标提醒，实际盯盘场景反而更快。
+### wecom_connector 实现要点（2026-09-23 实测）
 
-**推荐组合**：日常高频日报走 `wecom_robot`；出差/不想装企业微信的场合，同一份摘要可用 `wxpusher` 双发——config 只允许一个 channel，双发= 两个部署实例或手动切换。
+- 发送命令：`wecom-cli message aibot send --chat-id <授权人ID，取自 whoami> --msg-type markdown --markdown '<JSON>'`，返回 `success: true` 即送达。
+- **Windows 坑**：`wecom-cli.cmd`（cmd 壳）传中文参数会报"系统找不到指定的路径"——Git Bash 下必须用 sh 版 shim `~/.workbuddy/binaries/node/cli-connector-packages/wecom-cli`（直接 node 调用，绕过 cmd 编码）。
+- 授权人 `chat_id` 由 `wecom-cli identity whoami` 动态获取，**不得写死进任何文件**；发授权人以外的目标须先 `sessions list` 现取（详见 wecomcli-message skill 的会话匹配规则）。
+- ID 类字段（chat_id/userid 等）按 wecomcli-shared 约束**禁止出现在给用户的回复**中。
+
+**关于"推到个人微信"的说明**：个人微信没有官方机器人 API。serverchan/wxpusher 都是把消息经**公众号/服务号**通道送到你个人微信的"服务通知"里——这是正规且稳的路径。宣称能直接进聊天窗口的方案（itchat/wechaty 等逆向协议）有封号风险，本系统不支持。
 
 ## 2. 配置（写进 config.yaml，真实密钥不入 git）
 
