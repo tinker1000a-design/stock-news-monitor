@@ -1,6 +1,20 @@
 # PUSH.md · 微信端推送层设计
 
-> 报告本体永远在 Obsidian vault，微信收到的只是**摘要卡 + 指路**。本层是纯附加通知，故障不得影响报告生成。
+> 报告本体永远在 Obsidian vault，机器人收到的是**摘要卡 + 完整报告承载通道**（见第 1.5 节）。本层是纯附加通知，故障不得影响报告生成。
+
+## 1.5 完整报告推送（full_report：摘要卡之外的全文通道，2026-09-25 新增）
+
+用户要求：机器人收到的不能只是简报，要有**完整报告内容**。直接发全文 markdown 不可行——单条消息上限 4096 字节（约 1300 汉字），日报动辄 5000+ 汉字必被截断。因此全文必须经"承载载体"，机器人只发摘要卡 + 承载链接/文件。三通道对比：
+
+| 通道 | 机制 | 手机端体验 | 自动化友好度 |
+|------|------|-----------|-------------|
+| `tencent_doc`（推荐） | 用 tencent-docs skill 把报告 md 创建为**腾讯文档在线文档**，机器人摘要卡附文档链接 | **微信内点开即看**（小程序打开），排版好、链接持久、可回看历史 | 高：skill 创建文档返回链接，写进摘要卡一行即可 |
+| `email` | 用 Agent Mail（智能体邮箱）把完整报告以 HTML 邮件发到用户邮箱 | 需跳邮箱 App；微信 QQ 邮箱提醒可见标题 | 高：本地 SMTP/skill 直发，全文无限制 |
+| `wecom_file` | 报告转 PDF/长图 → `wecom-cli media upload` 拿 media_id → `aibot send msg_type=file/image` | 企业微信内直接预览，无需跳转 | 中：多一步格式转换（md→PDF/长图），media_id 3 天过期但发完即用无影响 |
+
+**决策规则（写进 automation prompt）**：`config.push.full_report` 选定通道；摘要卡末行从"📄 全文：本地路径"改为对应承载——tencent_doc 附在线文档链接 / email 附"已发邮件至 <邮箱>" / wecom_file 附文件消息（跟在摘要卡后单独发一条）。**报告全文内容在三个通道里都保持与 vault 版本一致，禁止为推送重写或美化**。
+
+**与既有纪律的兼容**：full_report 是**附加通道**，摘要卡规则（第 3、4 节）不变；tencent_doc 创建的文档与 vault 报告同源同内容，vault 仍是唯一权威版本；email 收件地址视同配置项写真实 config.yaml 不入 git。
 
 ## 1. 渠道抽象（config.push.channel 五选一）
 
@@ -12,9 +26,18 @@
 | `wxpusher` | WxPusher | **个人微信**"服务通知"（经公众号下发） | wxpusher.zjiecode.com 注册 → 建 App 拿 appToken → 关注公众号绑定 UID；额度以官网为准 |
 | `none` | 不推送 | 静默模式 | 无 |
 
-### wecom_connector 实现要点（2026-09-23 实测）
+### wecom_connector 实现要点（2026-09-23 首次连通 / 2026-09-24 修订命令形式）
 
-- 发送命令：`wecom-cli message aibot send --chat-id <授权人ID，取自 whoami> --msg-type markdown --markdown '<JSON>'`，返回 `success: true` 即送达。
+- **发送命令（CLI 规范形式，单参数 JSON）**：
+  ```bash
+  <node>/.workbuddy/binaries/node/cli-connector-packages/wecom-cli message aibot send --json '{
+    "chat_id": "<授权人ID，取自 whoami>",
+    "msg_type": "markdown",
+    "markdown": { "content": "<摘要卡正文>" }
+  }'
+  ```
+  返回 `success: true` 即送达。`--json` 是 CLI 文档（wecomcli-message skill）规定的形式，**不要**用 `--chat-id/--msg-type/--markdown` 三个独立参数（早期版本曾按此写过，非 CLI 支持形式）。
+- **⚠️ JSON 逃逸警告（2026-09-24 实测）**：`markdown.content` 里若写 `\\` 双反斜杠（例如把 Windows 路径写成 `E:\\我的笔记库\\...`），CLI 会输出 `[wecom] json repair: 输入 JSON 已自动修复`。虽然仍能送达，但属于依赖容错，**建议 JSON 内的路径直接用单个 `\` 或统一用 `/`**，避免把"能发出去"建立在自动修复上。
 - **Windows 坑**：`wecom-cli.cmd`（cmd 壳）传中文参数会报"系统找不到指定的路径"——Git Bash 下必须用 sh 版 shim `~/.workbuddy/binaries/node/cli-connector-packages/wecom-cli`（直接 node 调用，绕过 cmd 编码）。
 - 授权人 `chat_id` 由 `wecom-cli identity whoami` 动态获取，**不得写死进任何文件**；发授权人以外的目标须先 `sessions list` 现取（详见 wecomcli-message skill 的会话匹配规则）。
 - ID 类字段（chat_id/userid 等）按 wecomcli-shared 约束**禁止出现在给用户的回复**中。

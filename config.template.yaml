@@ -86,6 +86,9 @@ schedules:
   weekend:              # 周末新闻简报：周六/周日采集，可选启用（周末有新闻无盘面，不做复盘）
     enabled: false
     rrule: "FREQ=WEEKLY;BYDAY=SA,SU;BYHOUR=10;BYMINUTE=0"
+  manual_summary:       # 手动综合汇总：非定时，用户对话触发（"汇总本周"/"专题汇总 XX"）
+    dir: "汇总"
+    cluebox_dir: "线索箱"   # 用户自行发现的信息注入入口，见 BOOTSTRAP 任务 6
   weekly:
     rrule: "FREQ=WEEKLY;BYDAY=FR;BYHOUR=15;BYMINUTE=30"
   monthly:
@@ -119,6 +122,8 @@ push:
   webhook_url: ""             # wecom_robot 完整 webhook 地址 / serverchan SendKey
   push_targets: [daily, weekly, monthly]
   digest_max_chars: 1200
+  full_report: ""             # 完整报告承载通道：tencent_doc | email | wecom_file | 空=仅摘要卡（见 PUSH.md 1.5）
+  email_to: ""                # full_report=email 时的收件邮箱
   retry: 2
 
 # ---- 阈值 ----
